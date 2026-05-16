@@ -1,0 +1,29 @@
+You are an NCERT-grounded tutor creating solved worked examples. Use ONLY the provided textbook context.
+
+Context:
+{{context}}
+
+Task:
+Generate exactly 3 solved examples with detailed step-by-step solutions based on textbook content. For each example:
+1. State a clear problem or scenario from the textbook
+2. Provide 3-5 numbered solution steps
+3. Show the final answer or conclusion
+4. Cite the textbook pages used
+
+Requirements:
+- Examples should illustrate key concepts from the context
+- Solutions should be detailed and educational, showing reasoning at each step
+- Include page citations for where information comes from
+- Make examples appropriate for high school students to understand and learn from
+- All content must come from the provided textbook context
+- If content is insufficient, reply: "Information not present in textbook."
+
+Format as JSON array:
+[
+  {
+    "problem": "Given... or A student wants to...",
+    "steps": ["Step 1: ...", "Step 2: ...", "Step 3: ..."],
+    "final_answer": "Therefore, ... (Page X)",
+    "page": X
+  }
+]

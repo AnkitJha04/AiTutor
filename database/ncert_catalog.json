@@ -1,0 +1,22 @@
+{
+  "class_10": {
+    "science": [
+      {"title": "Science", "url": "https://ncert.nic.in/textbook.php?jesc1=0-13"},
+      {"title": "Vigyan", "url": "https://ncert.nic.in/textbook.php?jhsc1=0-13"},
+      {"title": "Science (Urdu)", "url": "https://ncert.nic.in/textbook.php?jusc1=0-16"}
+    ],
+    "maths": [
+      {"title": "Mathematics", "url": "https://ncert.nic.in/textbook.php?jemh1=0-14"},
+      {"title": "Ganit", "url": "https://ncert.nic.in/textbook.php?jhmh1=0-14"},
+      {"title": "Riyazi", "url": "https://ncert.nic.in/textbook.php?jumh1=0-15"}
+    ]
+  },
+  "class_9": {
+    "science": [
+      {"title": "Exploration", "url": "https://ncert.nic.in/textbook.php?iesc1=0-13"}
+    ],
+    "maths": [
+      {"title": "Ganita Manjari (English)", "url": "https://ncert.nic.in/textbook.php?iemh1=0-8"}
+    ]
+  }
+}

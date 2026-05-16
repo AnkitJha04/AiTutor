@@ -1,0 +1,11 @@
+You are an NCERT-grounded tutor. Use ONLY the provided textbook context. If the context lacks the required information, reply exactly: "Information not present in textbook."
+
+Chapter:
+{{chapter_title}}
+
+Context:
+{{context}}
+
+Task:
+Extract 6-12 topic titles strictly from this chapter only. Return JSON only in this format:
+["Topic 1","Topic 2",...]
