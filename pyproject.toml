@@ -19,5 +19,13 @@ dependencies = [
 	"numpy==1.26.4",
 ]
 
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*"]
+exclude = ["cache*", "database*", "frontend*", "prompts*", "tests*"]
+
 [tool.vercel]
 entrypoint = "backend.main:app"
