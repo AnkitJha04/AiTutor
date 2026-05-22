@@ -11,6 +11,75 @@ const subjectOptions = [
   { label: "Maths", value: "maths" }
 ];
 
+function getContentArray(content) {
+  if (Array.isArray(content)) {
+    return content;
+  }
+
+  if (content && typeof content === "object") {
+    const arrayValues = Object.values(content).filter(Array.isArray);
+    if (arrayValues.length > 0) {
+      return arrayValues.flat();
+    }
+  }
+
+  return [];
+}
+
+function getQuestionText(content) {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  const arrayContent = getContentArray(content);
+  if (arrayContent.length > 0) {
+    const firstItem = arrayContent[0];
+    if (typeof firstItem === "string") {
+      return firstItem;
+    }
+    if (firstItem && typeof firstItem === "object" && typeof firstItem.question === "string") {
+      return firstItem.question;
+    }
+    return String(firstItem ?? "");
+  }
+
+  if (content && typeof content === "object" && typeof content.question === "string") {
+    return content.question;
+  }
+
+  return "";
+}
+
+function getPromptItems(content) {
+  if (typeof content === "string") {
+    return content
+      .split(/\n\n+/)
+      .map((block) => block.trim())
+      .filter(Boolean);
+  }
+
+  const arrayContent = getContentArray(content);
+  if (arrayContent.length > 0) {
+    return arrayContent
+      .map((item) => {
+        if (typeof item === "string") {
+          return item.trim();
+        }
+        if (item && typeof item === "object" && typeof item.question === "string") {
+          return item.question.trim();
+        }
+        return String(item ?? "").trim();
+      })
+      .filter(Boolean);
+  }
+
+  if (content && typeof content === "object" && typeof content.question === "string") {
+    return [content.question.trim()];
+  }
+
+  return [];
+}
+
 export default function App() {
   const [className, setClassName] = useState("9");
   const [subject, setSubject] = useState("science");
@@ -274,21 +343,24 @@ export default function App() {
 
   async function handleEvaluation(kind) {
     if (!canQuery || !questions?.[kind]?.content) return;
+    const statusKey = {
+      mcq: "evaluationMcq",
+      short: "evaluationShort",
+      long: "evaluationLong"
+    };
+    const setterMap = {
+      mcq: setMcqEvaluation,
+      short: setShortEvaluation,
+      long: setLongEvaluation
+    };
+    const questionText = getQuestionText(questions[kind].content);
+    if (!questionText) return;
+
     try {
       const answerMap = {
         mcq: mcqAnswer,
         short: shortAnswer,
         long: longAnswer
-      };
-      const statusKey = {
-        mcq: "evaluationMcq",
-        short: "evaluationShort",
-        long: "evaluationLong"
-      };
-      const setterMap = {
-        mcq: setMcqEvaluation,
-        short: setShortEvaluation,
-        long: setLongEvaluation
       };
       if (!answerMap[kind]) return;
       setStatus((prev) => ({ ...prev, [statusKey[kind]]: "loading" }));
@@ -300,7 +372,7 @@ export default function App() {
         topic_title: topicTitle,
         chapter_title: chapter,
         subtopic_title: subtopic,
-        question: questions[kind].content,
+        question: questionText,
         student_answer: answerMap[kind]
       });
       setterMap[kind](data);
@@ -539,40 +611,51 @@ export default function App() {
               <div className="mt-3 space-y-4">
                 <div>
                   <p className="text-xs uppercase tracking-[0.2em] text-sand/60">MCQs</p>
-                    {questions?.mcq?.content ? (
-                      typeof questions.mcq.content === "object" ? (
-                        questions.mcq.content.map((item, idx) => (
+                  {questions?.mcq?.content ? (() => {
+                    const mcqItems = getContentArray(questions.mcq.content);
+                    if (mcqItems.length > 0) {
+                      return mcqItems.map((item, idx) => {
+                        const questionText = typeof item === "string" ? item : item?.question || "";
+                        const options = Array.isArray(item?.options) ? item.options : [];
+                        return (
                           <div key={idx} className="mt-2 rounded-lg border border-sand/20 bg-white/5 p-3">
-                            <div className="font-semibold">{item.question}</div>
-                            <ul className="mt-2 list-disc list-inside text-sand/90">
-                              {item.options?.map((opt,i)=> <li key={i}>{opt}</li>)}
-                            </ul>
-                            {item.answer ? <div className="mt-2 text-xs text-sand/70">Answer: {item.answer}</div> : null}
-                            {item.explanation ? <div className="mt-2 text-xs text-sand/70">{item.explanation}</div> : null}
-                          </div>
-                        ))
-                      ) : (
-                        questions.mcq.content.split(/Question\s+\d+:?/).filter(Boolean).map((q, idx) => {
-                          const parts = q.trim().split('\n').map(s=>s.trim()).filter(Boolean);
-                          const questionLine = parts.find(p=>p.includes('?')) || '';
-                          const options = parts.filter(p=>/^[A-D]\./.test(p));
-                          const answerLine = parts.find(p=>/^Correct answer:/i.test(p)) || '';
-                          const explanation = parts.find(p=>/^Explanation:/i.test(p)) || '';
-                          return (
-                            <div key={idx} className="mt-2 rounded-lg border border-sand/20 bg-white/5 p-3">
-                              <div className="font-semibold">{questionLine}</div>
+                            <div className="font-semibold">{questionText}</div>
+                            {options.length > 0 ? (
                               <ul className="mt-2 list-disc list-inside text-sand/90">
-                                {options.map((opt,i)=> <li key={i}>{opt.replace(/^[A-D]\.\s*/, '')}</li>)}
+                                {options.map((opt, optionIndex) => (
+                                  <li key={optionIndex}>{opt}</li>
+                                ))}
                               </ul>
-                              {answerLine ? <div className="mt-2 text-xs text-sand/70">{answerLine}</div> : null}
-                              {explanation ? <div className="mt-2 text-xs text-sand/70">{explanation}</div> : null}
-                            </div>
-                          )
-                        })
-                      )
-                    ) : (
-                      <p className="whitespace-pre-line text-sand/90">Generate questions to see results here.</p>
-                    )}
+                            ) : null}
+                            {item?.answer ? <div className="mt-2 text-xs text-sand/70">Answer: {item.answer}</div> : null}
+                            {item?.explanation ? <div className="mt-2 text-xs text-sand/70">{item.explanation}</div> : null}
+                          </div>
+                        );
+                      });
+                    }
+
+                    return questions.mcq.content.split(/Question\s+\d+:?/).filter(Boolean).map((q, idx) => {
+                      const parts = q.trim().split('\n').map((s) => s.trim()).filter(Boolean);
+                      const questionLine = parts.find((part) => part.includes('?')) || '';
+                      const options = parts.filter((part) => /^[A-D]\./.test(part));
+                      const answerLine = parts.find((part) => /^Correct answer:/i.test(part)) || '';
+                      const explanation = parts.find((part) => /^Explanation:/i.test(part)) || '';
+                      return (
+                        <div key={idx} className="mt-2 rounded-lg border border-sand/20 bg-white/5 p-3">
+                          <div className="font-semibold">{questionLine}</div>
+                          <ul className="mt-2 list-disc list-inside text-sand/90">
+                            {options.map((opt, optionIndex) => (
+                              <li key={optionIndex}>{opt.replace(/^[A-D]\.\s*/, '')}</li>
+                            ))}
+                          </ul>
+                          {answerLine ? <div className="mt-2 text-xs text-sand/70">{answerLine}</div> : null}
+                          {explanation ? <div className="mt-2 text-xs text-sand/70">{explanation}</div> : null}
+                        </div>
+                      );
+                    });
+                  })() : (
+                    <p className="whitespace-pre-line text-sand/90">Generate questions to see results here.</p>
+                  )}
                 </div>
 
                 <div>
@@ -582,13 +665,21 @@ export default function App() {
                       {questions?.short?.content ? (
                         <div>
                           <p className="font-semibold">Short answer prompts</p>
-                          <div className="mt-1 whitespace-pre-line">{questions.short.content}</div>
+                          <ul className="mt-2 space-y-2 list-disc list-inside">
+                            {getPromptItems(questions.short.content).map((prompt, idx) => (
+                              <li key={idx} className="leading-6">{prompt}</li>
+                            ))}
+                          </ul>
                         </div>
                       ) : null}
                       {questions?.long?.content ? (
                         <div>
                           <p className="font-semibold mt-2">Long answer prompts</p>
-                          <div className="mt-1 whitespace-pre-line">{questions.long.content}</div>
+                          <ul className="mt-2 space-y-2 list-disc list-inside">
+                            {getPromptItems(questions.long.content).map((prompt, idx) => (
+                              <li key={idx} className="leading-6">{prompt}</li>
+                            ))}
+                          </ul>
                         </div>
                       ) : null}
                     </div>
