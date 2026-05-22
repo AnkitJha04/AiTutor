@@ -43,6 +43,8 @@ def extract_subtopics(text: str) -> list[dict[str, str]]:
 
 async def extract_subtopics_llm(chapter_title: str, text: str) -> list[dict[str, str]]:
     settings = get_settings()
+    if settings.force_local_generation:
+        return extract_subtopics(text)
     client = OllamaClient(settings.ollama_base_url, settings.ollama_model)
     prompt_path = Path("prompts/subtopics_prompt.txt")
     prompt = prompt_path.read_text(encoding="utf-8")
@@ -51,10 +53,13 @@ async def extract_subtopics_llm(chapter_title: str, text: str) -> list[dict[str,
         prompt.replace("{{chapter_title}}", chapter_title)
         .replace("{{context}}", context)
     )
-    response = await client.generate(final_prompt, temperature=settings.temperature)
+    try:
+        response = await client.generate(final_prompt, temperature=settings.temperature)
+    except Exception:
+        return extract_subtopics(text)
 
     if "Information not present in textbook." in response:
-        return []
+        return extract_subtopics(text)
 
     titles: list[str] = []
     try:
@@ -65,4 +70,4 @@ async def extract_subtopics_llm(chapter_title: str, text: str) -> list[dict[str,
         lines = [line.strip("- ").strip() for line in response.splitlines()]
         titles = [line for line in lines if line]
 
-    return [{"title": title, "content": ""} for title in titles]
+    return [{"title": title, "content": ""} for title in titles] or extract_subtopics(text)

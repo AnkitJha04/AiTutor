@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from backend.config.settings import get_settings
@@ -10,9 +11,34 @@ from backend.rag.retriever import RetrievedChunk
 class AnswerValidator:
     def __init__(self) -> None:
         settings = get_settings()
-        self.client = OllamaClient(settings.ollama_base_url, settings.ollama_model)
+        self.settings = settings
+        self.client = None if settings.force_local_generation else OllamaClient(settings.ollama_base_url, settings.ollama_model)
         self.temperature = settings.temperature
         self.prompt_path = Path("prompts/evaluation_prompt.txt")
+
+    def _local_validate(self, question: str, student_answer: str, chunks: list[RetrievedChunk]) -> str:
+        context = " ".join(chunk.text for chunk in chunks)
+        question_terms = set(re.findall(r"[A-Za-z][A-Za-z\-']+", question.lower()))
+        answer_terms = set(re.findall(r"[A-Za-z][A-Za-z\-']+", student_answer.lower()))
+        context_terms = set(re.findall(r"[A-Za-z][A-Za-z\-']+", context.lower()))
+
+        supported = sorted((answer_terms | question_terms) & context_terms)
+        coverage = len(supported) / max(1, len(answer_terms | question_terms))
+        if not student_answer.strip():
+            verdict = "The answer is empty."
+        elif coverage >= 0.4:
+            verdict = "The answer is well supported by the textbook context."
+        elif coverage >= 0.15:
+            verdict = "The answer is partially supported by the textbook context."
+        else:
+            verdict = "The answer has weak support from the textbook context."
+
+        support_text = ", ".join(supported[:12]) if supported else "none"
+        return (
+            f"{verdict}\n"
+            f"Matched terms: {support_text}\n"
+            f"Question: {question[:240]}"
+        )
 
     async def validate(
         self, question: str, student_answer: str, chunks: list[RetrievedChunk]
@@ -32,9 +58,19 @@ class AnswerValidator:
             .replace("{{question}}", question)
             .replace("{{answer}}", student_answer)
         )
-        response = await self.client.generate(final_prompt, temperature=self.temperature)
         sources = ", ".join(str(c.metadata.get("page")) for c in chunks)
         source_chunks = "\n\n".join(
             f"[Page {c.metadata.get('page')}] {c.text}" for c in chunks
         )
-        return {"content": response.strip(), "sources": sources, "source_chunks": source_chunks}
+        if self.client is not None:
+            try:
+                response = await self.client.generate(final_prompt, temperature=self.temperature)
+                return {"content": response.strip(), "sources": sources, "source_chunks": source_chunks}
+            except Exception:
+                pass
+
+        return {
+            "content": self._local_validate(question, student_answer, chunks),
+            "sources": sources,
+            "source_chunks": source_chunks,
+        }

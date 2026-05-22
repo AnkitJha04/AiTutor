@@ -1,20 +1,33 @@
 from __future__ import annotations
 
+import os
+import tempfile
 from functools import lru_cache
 from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _running_on_vercel() -> bool:
+    return bool(os.getenv("VERCEL"))
+
+
+def _runtime_cache_dir(name: str) -> Path:
+    return Path(tempfile.gettempdir()) / "aitutor" / name
+
+
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=None if _running_on_vercel() else ".env",
+        env_file_encoding="utf-8",
+    )
 
     ollama_base_url: str = Field(default="http://localhost:11434")
     ollama_model: str = Field(default="llama3.1:latest")
     embedding_model: str = Field(default="nomic-embed-text")
     use_sentence_transformers: bool = Field(default=False)
-    use_llm_subtopics: bool = Field(default=True)
-    force_local_generation: bool = Field(default=False)
+    use_llm_subtopics: bool = Field(default_factory=lambda: not _running_on_vercel())
+    force_local_generation: bool = Field(default_factory=_running_on_vercel)
     full_headings_list: bool = Field(default=False)
 
     chunk_size: int = Field(default=800)
@@ -26,8 +39,8 @@ class Settings(BaseSettings):
     subtopic_max_chars: int = Field(default=12000)
     chapter_max_chars: int = Field(default=12000)
 
-    pdf_cache_dir: Path = Field(default=Path("cache/pdfs"))
-    index_dir: Path = Field(default=Path("cache/index"))
+    pdf_cache_dir: Path = Field(default_factory=lambda: _runtime_cache_dir("pdfs"))
+    index_dir: Path = Field(default_factory=lambda: _runtime_cache_dir("index"))
     ncert_catalog_path: Path = Field(default=Path("database/ncert_catalog.json"))
 
     log_level: str = Field(default="INFO")

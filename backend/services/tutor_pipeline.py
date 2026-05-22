@@ -185,7 +185,7 @@ class TutorPipeline:
             class_name, subject, book_title, chapter_title
         )
         title_for_prompt = chapter_title
-        if self.settings.use_llm_subtopics:
+        if self.settings.use_llm_subtopics and not self.settings.force_local_generation:
             try:
                 subtopics = await extract_subtopics_llm(title_for_prompt, chapter_text)
             except Exception:
@@ -367,7 +367,7 @@ class TutorPipeline:
 
         index_name = safe_slug(f"{class_name}_{subject}_{book_title}_full")
         index_path = self.settings.index_dir / index_name
-        if index_path.with_suffix(".faiss").exists():
+        if index_path.with_suffix(".pkl").exists():
             return VectorStore.load(index_path)
 
         pdf_path = await self.scraper.download_pdf(class_name, subject, book_title)
@@ -405,7 +405,7 @@ class TutorPipeline:
             batch = texts[idx : idx + batch_size]
             vectors.append(await self.embedder.embed(batch))
         if not vectors:
-            return self.embedder.embed([""])
+            return await self.embedder.embed([""])
         return np.vstack(vectors)
 
     async def _chapter_context(
