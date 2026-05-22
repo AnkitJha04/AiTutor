@@ -101,3 +101,7 @@ Frontend URL: `http://localhost:5173`
    - PDF download + indexing may take time
 - If model output is unavailable:
    - confirm Ollama is running and model is installed
+
+
+## Link for Checking out the Website
+https://aitutor-ebon.vercel.app/
